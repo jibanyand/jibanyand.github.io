@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luigi's Picture Poker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Luigi's Picture Poker</h1>
+        
+        <div class="stats-display">
+            <p><img src="coin.png" alt="Coins" class="stats-icon"> <span id="player-coins">10</span></p>
+            <p><img src="littlestar.png" alt="Win Streak" class="stats-icon"> <span id="win-streak">0</span></p>
+        </div>
+
+        <div class="cards-container">
+            <div class="luigi-cards">
+                <h2>Luigi's Cards</h2>
+                <div class="cards" id="luigi-cards">
+                    <!-- Luigi's cards will be hidden -->
+                </div>
+            </div>
+
+            <div class="player-cards">
+                <h2>Your Cards</h2>
+                <div class="cards" id="player-cards">
+                    <!-- Player's cards will be displayed here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="betting-area">
+            <p>Current Bet: <span id="current-bet">1</span></p>
+            <button id="increase-bet">Increase Bet (Max: 5)</button>
+        </div>
+
+        <div class="game-controls">
+            <button id="deal-cards" class="action-button">Deal Cards</button>
+            <button id="discard-cards" class="action-button" disabled>Discard Selected/Continue</button>
+            <button id="save-game" class="action-button">Save Game</button>
+            <button id="delete-save" class="action-button">Delete Save</button>
+            <button id="toggle-music" class="action-button">Enable Music</button>
+            <button id="how-to-play" class="action-button">How to Play</button>
+        </div>
+
+        <div class="message-area" id="message-area">
+            <!-- Game messages will appear here -->
+        </div>
+
+        <div class="welcome-popup" id="welcome-popup">
+            <div class="popup-content">
+                <h2>Welcome to Luigi's Picture Poker!</h2>
+                <p>Get ready to test your luck against Luigi!</p>
+                <button id="close-welcome" class="action-button">Let's Play!</button>
+            </div>
+        </div>
+
+        <div class="game-over" id="game-over">
+            <div class="popup-content">
+                <h2>You're Broke!</h2>
+                <p>Better luck next time!</p>
+                <button id="reset-game">Play Again</button>
+            </div>
+        </div>
+
+        <div class="confirmation-popup" id="confirmation-popup">
+            <div class="popup-content">
+                <h3>Delete Save?</h3>
+                <p>Are you sure you want to delete your saved game? This cannot be undone.</p>
+                <div class="popup-buttons">
+                    <button id="confirm-delete" class="action-button">Yes, Delete</button>
+                    <button id="cancel-delete" class="action-button">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="how-to-play-popup" id="how-to-play-popup">
+            <div class="popup-content">
+                <h2>How to Play Luigi's Picture Poker</h2>
+                <div class="instructions">
+                    <p>1. Start with 10 coins</p>
+                    <p>2. Click "Deal Cards" to begin a round</p>
+                    <p>3. Select cards you want to discard by clicking them</p>
+                    <p>4. Click "Discard Selected" to replace your chosen cards</p>
+                    <p>5. Click "Continue" to reveal the winner</p>
+                    <p>6. Win coins by getting better hands than Luigi!</p>
+                    <br>
+                    <p><strong>Hand Rankings (from highest to lowest):</strong></p>
+                    <p>• Five of a Kind (x16)</p>
+                    <p>• Four of a Kind (x8)</p>
+                    <p>• Full House (x6)</p>
+                    <p>• Three of a Kind (x4)</p>
+                    <p>• Two Pairs (x3)</p>
+                    <p>• One Pair (x2)</p>
+                    <p>• Junk (x1)</p>
+                </div>
+                <button id="close-how-to-play" class="action-button">Got it!</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <audio id="background-music" loop>
+        <source src="casino.mp3" type="audio/mpeg">
+    </audio>
+</body>
+</html> 
