@@ -901,4 +901,17 @@ h1 {
 .wario-mode .settings-popup #close-settings:hover {
     background-color: #2a3a4a;
     box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+}
+
+.credit-line {
+    text-align: center;
+    margin-top: 0.5rem;
+    color: #00ff66;
+    font-size: 0.9rem;
+    text-shadow: 0 0 5px rgba(0, 255, 102, 0.3);
+}
+
+.wario-mode .credit-line {
+    color: #ffcc00;
+    text-shadow: 0 0 5px rgba(255, 204, 0, 0.3);
 } 
