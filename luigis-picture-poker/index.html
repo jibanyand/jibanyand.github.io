@@ -39,10 +39,8 @@
         <div class="game-controls">
             <button id="deal-cards" class="action-button">Deal Cards</button>
             <button id="discard-cards" class="action-button" disabled>Discard Selected/Continue</button>
-            <button id="save-game" class="action-button">Save Game</button>
-            <button id="delete-save" class="action-button">Delete Save</button>
-            <button id="toggle-music" class="action-button">Enable Music</button>
             <button id="how-to-play" class="action-button">How to Play</button>
+            <button id="settings" class="action-button">Settings</button>
         </div>
 
         <div class="message-area" id="message-area">
@@ -97,6 +95,36 @@
                     <p>• Junk (x1)</p>
                 </div>
                 <button id="close-how-to-play" class="action-button">Got it!</button>
+            </div>
+        </div>
+
+        <div class="settings-popup" id="settings-popup">
+            <div class="popup-content">
+                <h2>Settings</h2>
+                <div class="settings-options">
+                    <button id="save-game" class="action-button">Save Game</button>
+                    <button id="delete-save" class="action-button">Delete Save</button>
+                    <button id="toggle-music" class="action-button">Enable Music</button>
+                    <div class="game-modifiers">
+                        <h3>Modifications</h3>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="show-luigi-hand">
+                            <span class="checkmark"></span>
+                            Show Luigi's Hand During Game
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="hard-mode">
+                            <span class="checkmark"></span>
+                            Hard Mode (Always Bet 5)
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="call-wario">
+                            <span class="checkmark"></span>
+                            Call Wario (Auto-Play)
+                        </label>
+                    </div>
+                </div>
+                <button id="close-settings" class="action-button">Close</button>
             </div>
         </div>
     </div>

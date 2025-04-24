@@ -32,9 +32,29 @@ class PicturePoker {
         this.closeWelcomeButton = document.getElementById('close-welcome');
         
         this.closeWelcomeButton.addEventListener('click', () => this.handleWelcomeClose());
+
+        // Settings menu elements
+        this.settingsButton = document.getElementById('settings');
+        this.settingsPopup = document.getElementById('settings-popup');
+        this.closeSettingsButton = document.getElementById('close-settings');
+        
+        this.settingsButton.addEventListener('click', () => this.showSettings());
+        this.closeSettingsButton.addEventListener('click', () => this.hideSettings());
         
         // Show welcome popup on start
         this.welcomePopup.classList.add('show');
+
+        // Game modifiers
+        this.showLuigiHand = false;
+        this.hardMode = false;
+        this.callWario = false;
+
+        // Initialize game modifiers from localStorage
+        this.initializeGameModifiers();
+        this.attachGameModifiers();
+
+        // Update music based on initial state
+        this.updateMusic();
     }
 
     initializeElements() {
@@ -117,6 +137,13 @@ class PicturePoker {
         await this.displayCardsWithAnimation();
         this.gameState = 'discarding';
         this.updateUI();
+
+        // If Call Wario is enabled, automatically play the hand
+        if (this.callWario) {
+            // Wait a short moment before auto-playing
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await this.autoPlayHand();
+        }
     }
 
     generateRandomCards(count) {
@@ -135,9 +162,9 @@ class PicturePoker {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        // Deal Luigi's cards with animation (hidden)
+        // Deal Luigi's cards with animation (hidden or visible based on setting)
         for (let i = 0; i < this.luigiCards.length; i++) {
-            const cardElement = this.createCard(this.luigiCards[i], true);
+            const cardElement = this.createCard(this.luigiCards[i], !this.showLuigiHand);
             cardElement.classList.add('sorting');
             this.luigiCardsContainer.appendChild(cardElement);
             await new Promise(resolve => setTimeout(resolve, 100));
@@ -203,7 +230,7 @@ class PicturePoker {
     }
 
     toggleCardSelection(index) {
-        if (this.gameState !== 'discarding') return;
+        if (this.gameState !== 'discarding' || this.callWario) return;
 
         const cardElement = this.playerCardsContainer.children[index];
         if (this.selectedCards.has(index)) {
@@ -218,8 +245,11 @@ class PicturePoker {
     async discardCards() {
         if (this.gameState !== 'discarding') return;
 
-        // Deduct the bet amount when discarding
-        this.playerCoins -= this.currentBet;
+        // Immediately change game state and disable the button to prevent multiple clicks
+        this.gameState = 'animating';
+        this.updateUI();
+
+        // Update the bet deduction from here since we'll handle it in revealWinner
         this.updateUI();
 
         // Animate discarding selected cards
@@ -239,62 +269,111 @@ class PicturePoker {
 
         await Promise.all(discardPromises);
 
-        // Luigi's smarter discard strategy
+        // Luigi's enhanced discard strategy
         const counts = {};
         this.luigiCards.forEach(card => {
             counts[card] = (counts[card] || 0) + 1;
         });
 
-        // Find cards that are part of matches (pairs, three of a kind, etc.)
-        const matchingCards = new Set();
-        const highCards = new Set(); // Cards worth 4 or more (Luigi and Mario)
-        
-        Object.entries(counts).forEach(([value, count]) => {
-            const numValue = parseInt(value);
-            // Keep cards that are part of matches
-            if (count >= 2) {
-                this.luigiCards.forEach((card, index) => {
-                    if (card === numValue) {
-                        matchingCards.add(index);
-                    }
-                });
-            }
-            // Keep high-value cards (4 or higher) if they're singles
-            if (numValue >= 4 && count === 1) {
-                this.luigiCards.forEach((card, index) => {
-                    if (card === numValue) {
-                        highCards.add(index);
-                    }
-                });
-            }
-        });
-
-        // Only discard cards that aren't part of matches or high-value singles
-        const luigiDiscardIndices = [];
-        for (let i = 0; i < this.luigiCards.length; i++) {
-            if (!matchingCards.has(i) && !highCards.has(i)) {
-                luigiDiscardIndices.push(i);
-            }
-        }
-
-        // Determine how many cards to discard based on current hand strength
-        let discardCount;
+        // Calculate hand strength and potential
         const currentHand = this.evaluateHand(this.luigiCards);
-        
-        if (currentHand.score >= 4) { // If he has three of a kind or better
-            discardCount = Math.floor(Math.random() * 2); // 0-1 cards
-        } else if (currentHand.score >= 2) { // If he has a pair
-            discardCount = Math.min(Math.floor(Math.random() * 3), luigiDiscardIndices.length); // 0-2 cards
-        } else { // If he has nothing
-            discardCount = Math.min(2 + Math.floor(Math.random() * 2), luigiDiscardIndices.length); // 2-3 cards
+        const cardValues = Object.keys(counts).map(Number).sort((a, b) => b - a);
+        const highCards = cardValues.filter(value => value >= 4);
+        const pairs = Object.entries(counts).filter(([_, count]) => count === 2);
+        const threeOfAKind = Object.entries(counts).find(([_, count]) => count === 3);
+        const fourOfAKind = Object.entries(counts).find(([_, count]) => count === 4);
+
+        // Initialize selectedDiscards
+        let selectedDiscards = new Set();
+
+        // Strategy based on current hand strength
+        if (currentHand.score >= 6) { // Four of a Kind or better
+            // Keep everything if we have four of a kind or better
+            selectedDiscards = new Set();
+        } else if (currentHand.score === 5) { // Full House
+            // Keep the full house, but consider upgrading if we have high cards
+            const [threeValue, twoValue] = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([value]) => parseInt(value));
+            
+            // If we have a high card that could make a better hand, consider discarding the pair
+            if (highCards.length > 0 && highCards[0] > twoValue) {
+                    this.luigiCards.forEach((card, index) => {
+                    if (card === twoValue) {
+                        selectedDiscards.add(index);
+                        }
+                    });
+                }
+        } else if (currentHand.score === 4) { // Three of a Kind
+            // Keep the three of a kind, consider discarding others for better potential
+            const threeValue = parseInt(threeOfAKind[0]);
+            const otherCards = this.luigiCards.filter(card => card !== threeValue);
+            
+            // If we have high cards that could make a full house, keep them
+            const highOtherCards = otherCards.filter(card => card >= 4);
+            if (highOtherCards.length > 0) {
+                // Keep the highest card that could make a full house
+                const highestCard = Math.max(...highOtherCards);
+                this.luigiCards.forEach((card, index) => {
+                    if (card !== threeValue && card !== highestCard) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            } else {
+                // Discard the lowest cards
+                const lowestCard = Math.min(...otherCards);
+                this.luigiCards.forEach((card, index) => {
+                    if (card === lowestCard) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            }
+        } else if (currentHand.score === 3) { // Two Pairs
+            // Keep the higher pair, consider discarding the lower pair if we have high cards
+            const pairs = Object.entries(counts)
+                .filter(([_, count]) => count === 2)
+                .map(([value]) => parseInt(value))
+                .sort((a, b) => b - a);
+            
+            if (highCards.length > 0 && highCards[0] > pairs[1]) {
+                // Discard the lower pair if we have a high card that could make a better hand
+                this.luigiCards.forEach((card, index) => {
+                    if (card === pairs[1]) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            }
+        } else if (currentHand.score === 2) { // One Pair
+            // Keep the pair and highest remaining card
+            const pairValue = parseInt(Object.entries(counts).find(([_, count]) => count === 2)[0]);
+            const otherCards = this.luigiCards.filter(card => card !== pairValue);
+            const highestOtherCard = Math.max(...otherCards);
+            
+            this.luigiCards.forEach((card, index) => {
+                if (card !== pairValue && card !== highestOtherCard) {
+                    selectedDiscards.add(index);
+                }
+            });
+        } else { // High Card or Nothing
+            // Keep the highest cards, discard the rest
+            const sortedCards = [...this.luigiCards].sort((a, b) => b - a);
+            const keepCount = Math.min(2, sortedCards.length); // Keep top 2 cards
+            
+            this.luigiCards.forEach((card, index) => {
+                if (!sortedCards.slice(0, keepCount).includes(card)) {
+                    selectedDiscards.add(index);
+                }
+            });
         }
 
-        // Randomly choose cards to discard from the available indices
-        const selectedDiscards = new Set();
-        while (selectedDiscards.size < discardCount && luigiDiscardIndices.length > 0) {
-            const randomIndex = Math.floor(Math.random() * luigiDiscardIndices.length);
-            selectedDiscards.add(luigiDiscardIndices[randomIndex]);
-            luigiDiscardIndices.splice(randomIndex, 1);
+        // Limit the number of cards to discard based on hand strength
+        const maxDiscards = Math.min(3, selectedDiscards.size);
+        if (selectedDiscards.size > maxDiscards) {
+            // Convert to array, sort by card value (lowest first), and keep only maxDiscards
+            const discardArray = Array.from(selectedDiscards)
+                .sort((a, b) => this.luigiCards[a] - this.luigiCards[b])
+                .slice(0, maxDiscards);
+            selectedDiscards = new Set(discardArray);
         }
 
         // Animate Luigi's discards
@@ -304,7 +383,7 @@ class PicturePoker {
             return new Promise(resolve => {
                 cardElement.addEventListener('animationend', () => {
                     this.luigiCards[index] = Math.floor(Math.random() * 6) + 1;
-                    const newCard = this.createCard(this.luigiCards[index], true); // Keep new cards hidden
+                    const newCard = this.createCard(this.luigiCards[index], !this.showLuigiHand);
                     cardElement.replaceWith(newCard);
                     newCard.classList.add('replacing');
                     resolve();
@@ -336,8 +415,8 @@ class PicturePoker {
 
         // Show both players' cards with simultaneous animation
         for (let i = 0; i < 5; i++) {
-            // Create Luigi's card (now visible)
-            const luigiCardElement = this.createCard(this.luigiCards[i]);
+            // Create Luigi's card (always visible during reveal)
+            const luigiCardElement = this.createCard(this.luigiCards[i], false);
             luigiCardElement.classList.add('sorting');
             this.luigiCardsContainer.appendChild(luigiCardElement);
 
@@ -419,6 +498,7 @@ class PicturePoker {
 
         let message = '';
         let didWin = false;
+        if (!this.callWario) {
         if (playerHand.score > luigiHand.score) {
             const multiplier = this.getMultiplier(playerHand.type);
             const winnings = this.currentBet * multiplier;
@@ -426,33 +506,141 @@ class PicturePoker {
             message = `You won! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
             didWin = true;
         } else if (playerHand.score < luigiHand.score) {
+            this.playerCoins -= this.currentBet;
             message = `Luigi won with ${luigiHand.type}! You lost ${this.currentBet} coins.`;
             didWin = false;
         } else {
             // Only compare highest cards if the hands are exactly the same type
             if (playerHand.type === luigiHand.type) {
-                const playerMax = Math.max(...this.playerCards);
-                const luigiMax = Math.max(...this.luigiCards);
-                if (playerMax > luigiMax) {
+                    if (playerHand.type === 'Full House') {
+                        // For Full House, first compare the three of a kind value
+                        const playerCounts = {};
+                        const luigiCounts = {};
+                        this.playerCards.forEach(card => playerCounts[card] = (playerCounts[card] || 0) + 1);
+                        this.luigiCards.forEach(card => luigiCounts[card] = (luigiCounts[card] || 0) + 1);
+                        
+                        const playerThreeValue = parseInt(Object.entries(playerCounts).find(([_, count]) => count === 3)[0]);
+                        const luigiThreeValue = parseInt(Object.entries(luigiCounts).find(([_, count]) => count === 3)[0]);
+                        
+                        if (playerThreeValue > luigiThreeValue) {
+                            const multiplier = this.getMultiplier(playerHand.type);
+                            const winnings = this.currentBet * multiplier;
+                            this.playerCoins += winnings;
+                            message = `You won the tie! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
+                            didWin = true;
+                        } else if (playerThreeValue < luigiThreeValue) {
+                            this.playerCoins -= this.currentBet;
+                            message = `Luigi won the tie! You lost ${this.currentBet} coins.`;
+                            didWin = false;
+                        } else {
+                            // If three of a kind values are equal, compare the pair values
+                            const playerTwoValue = parseInt(Object.entries(playerCounts).find(([_, count]) => count === 2)[0]);
+                            const luigiTwoValue = parseInt(Object.entries(luigiCounts).find(([_, count]) => count === 2)[0]);
+                            
+                            if (playerTwoValue > luigiTwoValue) {
+                                const multiplier = this.getMultiplier(playerHand.type);
+                                const winnings = this.currentBet * multiplier;
+                                this.playerCoins += winnings;
+                                message = `You won the tie! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
+                                didWin = true;
+                            } else if (playerTwoValue < luigiTwoValue) {
+                                this.playerCoins -= this.currentBet;
+                                message = `Luigi won the tie! You lost ${this.currentBet} coins.`;
+                                didWin = false;
+                            } else {
+                                // True tie - same three of a kind and pair values
+                                message = `It's a tie! You get your bet back.`;
+                                didWin = false;
+                            }
+                        }
+                    } else {
+                // First compare the highest value in highlighted cards
+                const playerHighlightedMax = Math.max(...playerWinningCards);
+                const luigiHighlightedMax = Math.max(...luigiWinningCards);
+                
+                if (playerHighlightedMax > luigiHighlightedMax) {
                     const multiplier = this.getMultiplier(playerHand.type);
                     const winnings = this.currentBet * multiplier;
                     this.playerCoins += winnings;
                     message = `You won the tie! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
                     didWin = true;
-                } else {
+                } else if (playerHighlightedMax < luigiHighlightedMax) {
+                    // Only deduct the bet amount here if the player loses the tie
                     this.playerCoins -= this.currentBet;
                     message = `Luigi won the tie! You lost ${this.currentBet} coins.`;
                     didWin = false;
+                } else {
+                    // If highlighted cards are equal, compare unhighlighted cards
+                    const playerUnhighlighted = this.playerCards.filter(card => !playerWinningCards.includes(card));
+                    const luigiUnhighlighted = this.luigiCards.filter(card => !luigiWinningCards.includes(card));
+                    
+                    const playerUnhighlightedMax = Math.max(...playerUnhighlighted);
+                    const luigiUnhighlightedMax = Math.max(...luigiUnhighlighted);
+                    
+                    if (playerUnhighlightedMax > luigiUnhighlightedMax) {
+                        const multiplier = this.getMultiplier(playerHand.type);
+                        const winnings = this.currentBet * multiplier;
+                        this.playerCoins += winnings;
+                        message = `You won the tie! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
+                        didWin = true;
+                    } else if (playerUnhighlightedMax < luigiUnhighlightedMax) {
+                        // Only deduct the bet amount here if the player loses the tie
+                        this.playerCoins -= this.currentBet;
+                        message = `Luigi won the tie! You lost ${this.currentBet} coins.`;
+                        didWin = false;
+                    } else {
+                        // True tie - same hand type and same card values
+                        message = `It's a tie! You get your bet back.`;
+                        didWin = false;
+                            }
+                    }
                 }
             } else {
-                // If hands are different but have same score, it's a true tie
-                message = `It's a tie! No coins won or lost.`;
-                didWin = false;
+                // If hands are different but have same score, compare the actual card values
+                // Sort both hands in descending order for comparison
+                const sortedPlayerCards = [...this.playerCards].sort((a, b) => b - a);
+                const sortedLuigiCards = [...this.luigiCards].sort((a, b) => b - a);
+                
+                // Compare each card in order
+                    let tieResolved = false;
+                for (let i = 0; i < 5; i++) {
+                    if (sortedPlayerCards[i] > sortedLuigiCards[i]) {
+                        const multiplier = this.getMultiplier(playerHand.type);
+                        const winnings = this.currentBet * multiplier;
+                        this.playerCoins += winnings;
+                        message = `You won! ${playerHand.type} (x${multiplier}) - You won ${winnings} coins!`;
+                        didWin = true;
+                            tieResolved = true;
+                        break;
+                    } else if (sortedPlayerCards[i] < sortedLuigiCards[i]) {
+                        this.playerCoins -= this.currentBet;
+                        message = `Luigi won with ${luigiHand.type}! You lost ${this.currentBet} coins.`;
+                        didWin = false;
+                            tieResolved = true;
+                        break;
+                    }
+                }
+                
+                    // If we get here and tieResolved is false, it means all cards are equal
+                    if (!tieResolved) {
+                    message = `It's a tie! You get your bet back.`;
+                    didWin = false;
+                }
             }
         }
 
         // Update win streak
         this.updateWinStreak(didWin);
+        } else {
+            // In Call Wario mode, just show the result without affecting coins or win streak
+            if (playerHand.score > luigiHand.score) {
+                message = `Wario won! ${playerHand.type}`;
+            } else if (playerHand.score < luigiHand.score) {
+                message = `Luigi won with ${luigiHand.type}!`;
+            } else {
+                message = `It's a tie!`;
+            }
+        }
 
         this.messageArea.textContent = message;
         
@@ -463,6 +651,13 @@ class PicturePoker {
             this.currentBet = this.defaultBet;
             this.selectedCards.clear();
             this.updateUI();
+
+            // If Call Wario is enabled, automatically deal the next hand
+            if (this.callWario) {
+                // Wait a short moment before dealing the next hand
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                await this.dealCards();
+            }
         }
     }
 
@@ -590,10 +785,87 @@ class PicturePoker {
         this.currentBetElement.textContent = this.currentBet;
         this.winStreakElement.textContent = this.winStreak;
 
-        this.increaseBetButton.disabled = this.gameState !== 'discarding' || this.currentBet >= this.maxBet || this.currentBet >= this.playerCoins;
+        // Disable betting and discarding in Wario mode
+        const isWarioMode = this.callWario && this.gameState === 'discarding';
+        this.increaseBetButton.disabled = isWarioMode || this.gameState !== 'discarding' || this.currentBet >= this.maxBet || this.currentBet >= this.playerCoins;
         this.dealCardsButton.disabled = this.gameState !== 'initial';
-        this.discardCardsButton.disabled = this.gameState !== 'discarding';
+        this.discardCardsButton.disabled = isWarioMode || this.gameState !== 'discarding' || this.gameState === 'animating';
         this.saveGameButton.disabled = this.gameState !== 'initial';
+
+        // Update game modifier toggle states
+        const showLuigiHandToggle = document.getElementById('show-luigi-hand');
+        const hardModeToggle = document.getElementById('hard-mode');
+        const callWarioToggle = document.getElementById('call-wario');
+        
+        if (showLuigiHandToggle) showLuigiHandToggle.disabled = this.gameState !== 'initial';
+        if (hardModeToggle) hardModeToggle.disabled = this.gameState !== 'initial';
+        if (callWarioToggle) callWarioToggle.disabled = this.gameState !== 'initial';
+
+        // Update UI for Wario mode
+        const playerCardsTitle = document.querySelector('.player-cards h2');
+        if (playerCardsTitle) {
+            playerCardsTitle.textContent = this.callWario ? "Wario's Cards" : "Your Cards";
+        }
+
+        // Update How to Play text based on Wario mode
+        this.updateHowToPlayText();
+
+        // Add or remove Wario mode class based on the actual state
+        document.body.classList.toggle('wario-mode', this.callWario);
+    }
+
+    updateHowToPlayText() {
+        const howToPlayTitle = document.querySelector('.how-to-play-popup h2');
+        const howToPlayInstructions = document.querySelector('.how-to-play-popup .instructions');
+        const howToPlayButton = document.querySelector('#close-how-to-play');
+
+        if (this.callWario) {
+            // Wario's version
+            if (howToPlayTitle) howToPlayTitle.textContent = "WARIO'S ULTIMATE POKER GUIDE";
+            if (howToPlayButton) howToPlayButton.textContent = "WARIO TIME!";
+            if (howToPlayInstructions) {
+                howToPlayInstructions.innerHTML = `
+                    <p>1. START WITH 10 COINS, CHUMP CHANGE FOR A GENIUS LIKE ME!</p>
+                    <p>2. CLICK "DEAL CARDS", WAH!!</p>
+                    <p>3. SELECT CARDS TO DISCARD, WAH-HA! GET RID OF THE JUNK!</p>
+                    <p>4. CLICK "DISCARD SELECTED", NEW CARDS, NEW CHANCES!</p>
+                    <p>5. CLICK "CONTINUE" TO SEE WHO WINS! HINT: IT'S GONNA BE ME!</p>
+                    <p>6. WIN COINS BY BEATING LUIGI, WAH-HA-HA! HIS TEARS TASTE LIKE GARLIC!</p>
+                    <br>
+                    <p><strong>HAND RANKINGS (FROM BEST TO WORST):</strong></p>
+                    <p>• FIVE OF A KIND (x16) - WAH-HA-HA! I'M THE BEST!</p>
+                    <p>• FOUR OF A KIND (x8) - NICE, VERY NICE!</p>
+                    <p>• FULL HOUSE (x6) - NOT BAD, LUIGI'S GONNA LOSE!</p>
+                    <p>• THREE OF A KIND (x4) - WAH-HA! ENOUGH TO MAKE LUIGI CRY!</p>
+                    <p>• TWO PAIRS (x3) - BETTER THAN LUIGI CAN DO!</p>
+                    <p>• ONE PAIR (x2) - EVEN WALUIGI COULD BEAT LUIGI WITH THIS!</p>
+                    <p>• JUNK (x1) - NOT NICE!</p>
+                `;
+            }
+        } else {
+            // Normal version
+            if (howToPlayTitle) howToPlayTitle.textContent = "How to Play Luigi's Picture Poker";
+            if (howToPlayButton) howToPlayButton.textContent = "Got it!";
+            if (howToPlayInstructions) {
+                howToPlayInstructions.innerHTML = `
+                    <p>1. Start with 10 coins</p>
+                    <p>2. Click "Deal Cards" to begin a round</p>
+                    <p>3. Select cards you want to discard by clicking them</p>
+                    <p>4. Click "Discard Selected" to replace your chosen cards</p>
+                    <p>5. Click "Continue" to reveal the winner</p>
+                    <p>6. Win coins by getting better hands than Luigi!</p>
+                    <br>
+                    <p><strong>Hand Rankings (from highest to lowest):</strong></p>
+                    <p>• Five of a Kind (x16)</p>
+                    <p>• Four of a Kind (x8)</p>
+                    <p>• Full House (x6)</p>
+                    <p>• Three of a Kind (x4)</p>
+                    <p>• Two Pairs (x3)</p>
+                    <p>• One Pair (x2)</p>
+                    <p>• Junk (x1)</p>
+                `;
+            }
+        }
     }
 
     saveGame() {
@@ -625,6 +897,8 @@ class PicturePoker {
     }
 
     deleteSave() {
+        localStorage.removeItem('luigiPokerSave');
+        // Also remove the game modifier settings
         localStorage.removeItem('luigiPokerSave');
         this.hideDeleteConfirmation();
         this.messageArea.textContent = 'Save deleted!';
@@ -660,6 +934,9 @@ class PicturePoker {
         } else {
             this.saveData = null;
         }
+
+        // Update music based on Wario mode
+        this.updateMusic();
     }
 
     displaySavedCards() {
@@ -723,6 +1000,256 @@ class PicturePoker {
         if (!this.saveData) {
             this.showHowToPlay();
         }
+    }
+
+    showSettings() {
+        this.settingsPopup.classList.add('show');
+    }
+
+    hideSettings() {
+        this.settingsPopup.classList.remove('show');
+    }
+
+    // Game modifiers
+    initializeGameModifiers() {
+        // Check if there's a saved game
+        const hasSavedGame = localStorage.getItem('luigiPokerSave') !== null;
+        
+        if (hasSavedGame) {
+            // Only load saved settings if there's a saved game
+            this.showLuigiHand = localStorage.getItem('showLuigiHand') === 'true';
+            this.hardMode = localStorage.getItem('hardMode') === 'true';
+            // Always start with Wario mode off
+            this.callWario = false;
+        } else {
+            // Force default settings for new game
+            this.showLuigiHand = false;
+            this.hardMode = false;
+            this.callWario = false;
+            // Clear any existing settings
+            localStorage.removeItem('showLuigiHand');
+            localStorage.removeItem('hardMode');
+            localStorage.removeItem('callWario');
+        }
+        
+        // Update the UI to reflect the actual state
+        const showLuigiHandToggle = document.getElementById('show-luigi-hand');
+        const hardModeToggle = document.getElementById('hard-mode');
+        const callWarioToggle = document.getElementById('call-wario');
+        
+        if (showLuigiHandToggle) showLuigiHandToggle.checked = this.showLuigiHand;
+        if (hardModeToggle) hardModeToggle.checked = this.hardMode;
+        if (callWarioToggle) callWarioToggle.checked = this.callWario;
+
+        // Ensure the bet display is updated according to the current state
+        this.updateBetDisplay();
+
+        // Ensure Wario mode class is removed from body
+        document.body.classList.remove('wario-mode');
+    }
+
+    // Add event listeners for game modifiers
+    attachGameModifiers() {
+        const showLuigiHandToggle = document.getElementById('show-luigi-hand');
+        const hardModeToggle = document.getElementById('hard-mode');
+        const callWarioToggle = document.getElementById('call-wario');
+
+        if (showLuigiHandToggle) {
+            showLuigiHandToggle.addEventListener('change', function(e) {
+                if (this.gameState === 'initial') {
+                    this.showLuigiHand = e.target.checked;
+                    localStorage.setItem('showLuigiHand', this.showLuigiHand);
+                }
+            }.bind(this));
+        }
+
+        if (hardModeToggle) {
+            hardModeToggle.addEventListener('change', function(e) {
+                if (this.gameState === 'initial') {
+                    this.hardMode = e.target.checked;
+                    localStorage.setItem('hardMode', this.hardMode);
+                    this.updateBetDisplay();
+                    this.updateUI();
+                }
+            }.bind(this));
+        }
+
+        if (callWarioToggle) {
+            callWarioToggle.addEventListener('change', function(e) {
+                if (this.gameState === 'initial') {
+                    this.callWario = e.target.checked;
+                    localStorage.setItem('callWario', this.callWario);
+                    this.updateUI();
+                    this.updateMusic();
+                }
+            }.bind(this));
+        }
+    }
+
+    updateMusic() {
+        if (this.musicEnabled) {
+            this.backgroundMusic.pause();
+            this.backgroundMusic.src = this.callWario ? 'wario.mp3' : 'casino.mp3';
+            this.backgroundMusic.volume = this.callWario ? 0.4 : 0.5;
+            this.backgroundMusic.play().catch(error => {
+                console.log('Error playing music:', error);
+            });
+        }
+    }
+
+    // Modify updateLuigiHandDisplay to respect the showLuigiHand setting
+    updateLuigiHandDisplay() {
+        const luigiCards = document.querySelectorAll('#luigi-cards .card');
+        luigiCards.forEach(card => {
+            if (this.showLuigiHand) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    }
+
+    // Modify updateBetDisplay to respect the hardMode setting
+    updateBetDisplay() {
+        const currentBetElement = document.getElementById('current-bet');
+        if (this.hardMode) {
+            currentBetElement.textContent = '5';
+            this.currentBet = 5;
+            this.defaultBet = 5;
+            this.maxBet = 5;
+        } else {
+            this.defaultBet = 1;
+            currentBetElement.textContent = this.defaultBet.toString();
+            this.currentBet = this.defaultBet;
+            this.maxBet = this.defaultBet >= 5 ? 100 : 5;
+        }
+    }
+
+    async autoPlayHand() {
+        if (!this.callWario) return;
+
+        // Use the enhanced discard strategy for the player's hand
+        const counts = {};
+        this.playerCards.forEach(card => {
+            counts[card] = (counts[card] || 0) + 1;
+        });
+
+        // Calculate hand strength and potential
+        const currentHand = this.evaluateHand(this.playerCards);
+        const cardValues = Object.keys(counts).map(Number).sort((a, b) => b - a);
+        const highCards = cardValues.filter(value => value >= 4);
+        const pairs = Object.entries(counts).filter(([_, count]) => count === 2);
+        const threeOfAKind = Object.entries(counts).find(([_, count]) => count === 3);
+        const fourOfAKind = Object.entries(counts).find(([_, count]) => count === 4);
+
+        // Initialize selectedDiscards
+        let selectedDiscards = new Set();
+
+        // Strategy based on current hand strength
+        if (currentHand.score >= 6) { // Four of a Kind or better
+            // Keep everything if we have four of a kind or better
+            selectedDiscards = new Set();
+        } else if (currentHand.score === 5) { // Full House
+            // Keep the full house, but consider upgrading if we have high cards
+            const [threeValue, twoValue] = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([value]) => parseInt(value));
+            
+            // If we have a high card that could make a better hand, consider discarding the pair
+            if (highCards.length > 0 && highCards[0] > twoValue) {
+                this.playerCards.forEach((card, index) => {
+                    if (card === twoValue) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            }
+        } else if (currentHand.score === 4) { // Three of a Kind
+            // Keep the three of a kind, consider discarding others for better potential
+            const threeValue = parseInt(threeOfAKind[0]);
+            const otherCards = this.playerCards.filter(card => card !== threeValue);
+            
+            // If we have high cards that could make a full house, keep them
+            const highOtherCards = otherCards.filter(card => card >= 4);
+            if (highOtherCards.length > 0) {
+                // Keep the highest card that could make a full house
+                const highestCard = Math.max(...highOtherCards);
+                this.playerCards.forEach((card, index) => {
+                    if (card !== threeValue && card !== highestCard) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            } else {
+                // Discard the lowest cards
+                const lowestCard = Math.min(...otherCards);
+                this.playerCards.forEach((card, index) => {
+                    if (card === lowestCard) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            }
+        } else if (currentHand.score === 3) { // Two Pairs
+            // Keep the higher pair, consider discarding the lower pair if we have high cards
+            const pairs = Object.entries(counts)
+                .filter(([_, count]) => count === 2)
+                .map(([value]) => parseInt(value))
+                .sort((a, b) => b - a);
+            
+            if (highCards.length > 0 && highCards[0] > pairs[1]) {
+                // Discard the lower pair if we have a high card that could make a better hand
+                this.playerCards.forEach((card, index) => {
+                    if (card === pairs[1]) {
+                        selectedDiscards.add(index);
+                    }
+                });
+            }
+        } else if (currentHand.score === 2) { // One Pair
+            // Keep the pair and highest remaining card
+            const pairValue = parseInt(Object.entries(counts).find(([_, count]) => count === 2)[0]);
+            const otherCards = this.playerCards.filter(card => card !== pairValue);
+            const highestOtherCard = Math.max(...otherCards);
+            
+            this.playerCards.forEach((card, index) => {
+                if (card !== pairValue && card !== highestOtherCard) {
+                    selectedDiscards.add(index);
+                }
+            });
+        } else { // High Card or Nothing
+            // Keep the highest cards, discard the rest
+            const sortedCards = [...this.playerCards].sort((a, b) => b - a);
+            const keepCount = Math.min(2, sortedCards.length); // Keep top 2 cards
+            
+            this.playerCards.forEach((card, index) => {
+                if (!sortedCards.slice(0, keepCount).includes(card)) {
+                    selectedDiscards.add(index);
+                }
+            });
+        }
+
+        // Limit the number of cards to discard based on hand strength
+        const maxDiscards = Math.min(3, selectedDiscards.size);
+        if (selectedDiscards.size > maxDiscards) {
+            // Convert to array, sort by card value (lowest first), and keep only maxDiscards
+            const discardArray = Array.from(selectedDiscards)
+                .sort((a, b) => this.playerCards[a] - this.playerCards[b])
+                .slice(0, maxDiscards);
+            selectedDiscards = new Set(discardArray);
+        }
+
+        // Set the selected cards
+        this.selectedCards = selectedDiscards;
+
+        // Highlight the selected cards
+        Array.from(this.playerCardsContainer.children).forEach((card, index) => {
+            if (this.selectedCards.has(index)) {
+                card.classList.add('selected');
+            }
+        });
+
+        // Wait a short moment before discarding
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Discard the selected cards
+        await this.discardCards();
     }
 }
 
