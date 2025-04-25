@@ -3,55 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Picture Poker">
+    <link rel="apple-touch-icon" href="assets/luigi.png">
+    <link rel="manifest" href="manifest.json">
     <title>Luigi's Picture Poker</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="card-value-reference">
+        <h3>Card Values</h3>
+        <p class="value-order">highest to lowest</p>
+        <div class="card-values">
+            <div class="card-value">
+                <img src="assets/star.png" alt="Star" class="card-image">
+                <span>Star</span>
+            </div>
+            <div class="card-value">
+                <img src="assets/mario.png" alt="Mario" class="card-image">
+                <span>Mario</span>
+            </div>
+            <div class="card-value">
+                <img src="assets/luigi.png" alt="Luigi" class="card-image">
+                <span>Luigi</span>
+            </div>
+            <div class="card-value">
+                <img src="assets/flower.png" alt="Flower" class="card-image">
+                <span>Flower</span>
+            </div>
+            <div class="card-value">
+                <img src="assets/mushroom.png" alt="Mushroom" class="card-image">
+                <span>Mushroom</span>
+            </div>
+            <div class="card-value">
+                <img src="assets/cloud.png" alt="Cloud" class="card-image">
+                <span>Cloud</span>
+            </div>
+        </div>
+    </div>
     <div class="game-container">
         <h1>Luigi's Picture Poker</h1>
         
         <div class="stats-display">
-            <p><img src="coin.png" alt="Coins" class="stats-icon"> <span id="player-coins">10</span></p>
-            <p><img src="littlestar.png" alt="Win Streak" class="stats-icon"> <span id="win-streak">0</span></p>
+            <p><img src="assets/coin.png" alt="Coins" class="stats-icon"> <span id="player-coins">10</span></p>
+            <p><img src="assets/littlestar.png" alt="Win Streak" class="stats-icon"> <span id="win-streak">0</span></p>
         </div>
 
         <div class="cards-container">
             <div class="luigi-cards">
                 <h2>Luigi's Cards</h2>
-                <div class="cards" id="luigi-cards">
-                    <!-- Luigi's cards will be hidden -->
-                </div>
+                <div class="cards" id="luigi-cards"></div>
             </div>
 
             <div class="player-cards">
                 <h2>Your Cards</h2>
-                <div class="cards" id="player-cards">
-                    <!-- Player's cards will be displayed here -->
-                </div>
+                <div class="cards" id="player-cards"></div>
             </div>
         </div>
 
         <div class="betting-area">
             <p>Current Bet: <span id="current-bet">1</span></p>
-            <button id="increase-bet">Increase Bet (Max: 5)</button>
+            <button id="increase-bet">Increase Bet</button>
         </div>
 
         <div class="game-controls">
             <button id="deal-cards" class="action-button">Deal Cards</button>
             <button id="discard-cards" class="action-button" disabled>Discard Selected/Continue</button>
-            <button id="how-to-play" class="action-button">How to Play</button>
-            <button id="settings" class="action-button">Settings</button>
         </div>
 
-        <div class="message-area" id="message-area">
-            <!-- Game messages will appear here -->
-        </div>
+        <div class="message-area" id="message-area"></div>
 
         <div class="welcome-popup" id="welcome-popup">
             <div class="popup-content">
                 <h2>Welcome to Luigi's Picture Poker!</h2>
                 <p>Get ready to test your luck against Luigi!</p>
-                <button id="close-welcome" class="action-button">Let's Play!</button>
+                <button id="close-welcome" class="action-button">Lets Play!</button>
             </div>
         </div>
 
@@ -85,14 +112,14 @@
                     <p>5. Click "Continue" to reveal the winner</p>
                     <p>6. Win coins by getting better hands than Luigi!</p>
                     <br>
-                    <p><strong>Hand Rankings (from highest to lowest):</strong></p>
-                    <p>• Five of a Kind (x16)</p>
-                    <p>• Four of a Kind (x8)</p>
-                    <p>• Full House (x6)</p>
-                    <p>• Three of a Kind (x4)</p>
-                    <p>• Two Pairs (x3)</p>
-                    <p>• One Pair (x2)</p>
-                    <p>• Junk (x1)</p>
+                    <p><strong>Hand Rankings from highest to lowest:</strong></p>
+                    <p>Five of a Kind x16</p>
+                    <p>Four of a Kind x8</p>
+                    <p>Full House x6</p>
+                    <p>Three of a Kind x4</p>
+                    <p>Two Pairs x3</p>
+                    <p>One Pair x2</p>
+                    <p>Junk x1</p>
                 </div>
                 <button id="close-how-to-play" class="action-button">Got it!</button>
             </div>
@@ -107,31 +134,187 @@
                     <button id="toggle-music" class="action-button">Enable Music</button>
                     <div class="game-modifiers">
                         <h3>Modifications</h3>
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="show-luigi-hand">
-                            <span class="checkmark"></span>
-                            Show Luigi's Hand During Game
-                        </label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="hard-mode">
-                            <span class="checkmark"></span>
-                            Hard Mode (Always Bet 5)
-                        </label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="call-wario">
-                            <span class="checkmark"></span>
-                            Call Wario (Auto-Play)
-                        </label>
+                        <div class="modifier-row">
+                            <label class="checkbox-container locked">
+                                <input type="checkbox" id="show-luigi-hand" disabled>
+                                <span class="checkmark"></span>
+                                Show Luigis Hand
+                            </label>
+                            <span class="help-link" id="show-luigi-hand-help">?</span>
+                        </div>
+                        <div class="modifier-row">
+                            <label class="checkbox-container locked">
+                                <input type="checkbox" id="hard-mode" disabled>
+                                <span class="checkmark"></span>
+                                Hard Mode
+                            </label>
+                            <span class="help-link" id="hard-mode-help">?</span>
+                        </div>
+                        <div class="modifier-row">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="call-wario">
+                                <span class="checkmark"></span>
+                                Call Wario
+                            </label>
+                            <span class="help-link" id="call-wario-help">?</span>
+                        </div>
                     </div>
                 </div>
                 <button id="close-settings" class="action-button">Close</button>
             </div>
         </div>
+
+        <div class="modifier-help-popup" id="show-luigi-hand-help-popup">
+            <div class="popup-content">
+                <h2>Show Luigi's Hand</h2>
+                <p>When enabled, you can see Luigis cards during the game. Using this can help you make better decisions about which cards to keep or discard.</p>
+                <p class="unlock-info">Unlocked by: <strong>Luigi Whisperer</strong></p>
+                <button class="close-help-button">Got it!</button>
+            </div>
+        </div>
+
+        <div class="modifier-help-popup" id="hard-mode-help-popup">
+            <div class="popup-content">
+                <h2>Hard Mode</h2>
+                <p>When enabled, all bets are multiplied by 10. Higher risk make better rewards! Make sure you have enough coins before enabling this mode.</p>
+                <p class="unlock-info">Unlocked by: <strong>Luigi Casino Legend</strong></p>
+                <button class="close-help-button">Got it!</button>
+            </div>
+        </div>
+
+        <div class="modifier-help-popup" id="call-wario-help-popup">
+            <div class="popup-content">
+                <h2>Call Wario</h2>
+                <p>When enabled, Wario will automatically play the game for you. He will make the best possible decisions for a better hand. You dont earn or lose anything since Wario is a cheater.</p>
+                <button class="close-help-button">Got it!</button>
+            </div>
+        </div>
+
         <div class="credit-line">Created by jibanyand</div>
     </div>
+
+    <div class="right-menu">
+        <button id="how-to-play" class="action-button">How to Play</button>
+        <button id="settings" class="action-button">Settings</button>
+        <button id="achievements" class="action-button">Achievements</button>
+    </div>
+
+    <div class="achievements-popup" id="achievements-popup">
+        <div class="popup-content">
+            <h2>Achievements</h2>
+            <div class="achievements-list">
+                <!-- Easy Achievements -->
+                <div class="achievement-item" data-achievement="no-discard-win">
+                    <div class="achievement-circle">
+                        <img src="assets/mushroom.png" alt="Like A Toad" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Like A Toad</span>
+                </div>
+                <div class="achievement-item" data-achievement="lowest-win">
+                    <div class="achievement-circle">
+                        <img src="assets/cloud.png" alt="Worth 0 Coins" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Worth 0 Coins</span>
+                </div>
+
+                <!-- Medium Achievements -->
+                <div class="achievement-item" data-achievement="5-win-streak">
+                    <div class="achievement-circle">
+                        <img src="assets/luigi.png" alt="Luigi Whisperer" class="achievement-icon">
+                        <img src="assets/littlestar.png" alt="Unlocks Modifier" class="achievement-unlock-icon">
+                    </div>
+                    <span class="achievement-name">Luigi Whisperer</span>
+                </div>
+                <div class="achievement-item" data-achievement="luigi-discard-only">
+                    <div class="achievement-circle">
+                        <img src="assets/luigi.png" alt="Maltigi" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Maltigi</span>
+                </div>
+                <div class="achievement-item" data-achievement="star-mario-combo">
+                    <div class="achievement-circle">
+                        <img src="assets/star.png" alt="Star Power" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Star Power</span>
+                </div>
+                <div class="achievement-item" data-achievement="true-tie">
+                    <div class="achievement-circle">
+                        <img src="assets/mario.png" alt="Like a Brother To Me" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Like a Brother To Me</span>
+                </div>
+                <div class="achievement-item" data-achievement="mario-luigi-star">
+                    <div class="achievement-circle">
+                        <img src="assets/star.png" alt="Mario Movie Ending" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Mario Movie Ending</span>
+                </div>
+
+                <!-- Hard Achievements -->
+                <div class="achievement-item" data-achievement="luigi-master">
+                    <div class="achievement-circle">
+                        <img src="assets/luigi.png" alt="Luigi Master" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Luigi Master</span>
+                </div>
+                <div class="achievement-item" data-achievement="3-full-houses">
+                    <div class="achievement-circle">
+                        <img src="assets/mushroom.png" alt="Mushroom Kingdoms Best" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Mushroom Kingdoms Best</span>
+                </div>
+                <div class="achievement-item" data-achievement="10-consecutive-wins">
+                    <div class="achievement-circle">
+                        <img src="assets/flower.png" alt="Youre on Fire!" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Youre on Fire!</span>
+                </div>
+
+                <!-- Very Hard Achievements -->
+                <div class="achievement-item" data-achievement="junk-win">
+                    <div class="achievement-circle">
+                        <img src="assets/cloud.png" alt="Absolute Trash" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Absolute Trash</span>
+                </div>
+                <div class="achievement-item" data-achievement="five-of-a-kind-luigi">
+                    <div class="achievement-circle">
+                        <img src="assets/luigi.png" alt="Weegee Paradox" class="achievement-icon">
+                    </div>
+                    <span class="achievement-name">Weegee Paradox</span>
+                </div>
+                <div class="achievement-item" data-achievement="25-win-streak">
+                    <div class="achievement-circle">
+                        <img src="assets/star.png" alt="Luigi Casino Legend" class="achievement-icon">
+                        <img src="assets/littlestar.png" alt="Unlocks Modifier" class="achievement-unlock-icon">
+                    </div>
+                    <span class="achievement-name">Luigi Casino Legend</span>
+                </div>
+            </div>
+            <button id="close-achievements" class="action-button">Close</button>
+        </div>
+    </div>
+
+    <div class="achievement-details-popup" id="achievement-details-popup">
+        <div class="popup-content">
+            <div class="achievement-details-content">
+                <div class="achievement-details-icon">
+                    <img src="" alt="" id="achievement-details-image">
+                    <img src="assets/littlestar.png" alt="Unlocks Modifier" class="achievement-unlock-icon" id="achievement-details-unlock-icon" style="display: none;">
+                </div>
+                <div class="achievement-details-text">
+                    <h3 id="achievement-details-name"></h3>
+                    <p id="achievement-details-description"></p>
+                    <p id="achievement-details-progress"></p>
+                </div>
+            </div>
+            <button id="close-achievement-details" class="action-button">Close</button>
+        </div>
+    </div>
+
     <script src="script.js"></script>
     <audio id="background-music" loop>
-        <source src="casino.mp3" type="audio/mpeg">
+        <source src="assets/casino.mp3" type="audio/mpeg">
     </audio>
 </body>
 </html> 
